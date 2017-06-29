@@ -1,5 +1,7 @@
 package zzy.jmd.server.httpway;
 
+import org.apache.commons.io.FileUtils;
+import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
@@ -7,9 +9,19 @@ import org.jboss.netty.handler.timeout.IdleState;
 import org.jboss.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.ResourceUtils;
+import org.springframework.util.StringUtils;
+import zzy.jmd.server.ConfigUtils;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
@@ -20,10 +32,40 @@ public class HttpwayRequestHandler extends SimpleChannelUpstreamHandler {
     private Logger LOGGER = LoggerFactory.getLogger(HttpwayRequestHandler.class);
     private final Frontway frontway;
     private final ThreadPoolExecutor threadPoolExecutor;
+    public final static Map<String, String> mines = new HashMap<>();
+
+    static {
+        try {
+            File file = ResourceUtils.getFile("classpath:mime.types");
+            String s = FileUtils.readFileToString(file, Charset.forName("UTF-8"));
+            String[] ms = StringUtils.delimitedListToStringArray(s, ";");
+            for (String m : ms) {
+                if (!StringUtils.hasText(m)) {
+                    continue;
+                }
+                String[] split = StringUtils.split(m, " ");
+                if (split.length != 2) {
+                    continue;
+                }
+                String mine = StringUtils.trimWhitespace(split[0]);
+                String types = StringUtils.trimWhitespace(split[1]);
+                String[] typesarr = StringUtils.delimitedListToStringArray(types, " ");
+                for (String type : typesarr) {
+                    if (!StringUtils.hasText(type)) {
+                        continue;
+                    }
+                    mines.put(StringUtils.trimAllWhitespace(type), mine);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public HttpwayRequestHandler(Frontway frontway, ThreadPoolExecutor standardThreadExecutor) {
         this.frontway = frontway;
         this.threadPoolExecutor = standardThreadExecutor;
+
     }
 
     /**
@@ -59,48 +101,77 @@ public class HttpwayRequestHandler extends SimpleChannelUpstreamHandler {
             return;
         }
         final DefaultHttpRequest httpRequest = (DefaultHttpRequest) message;
-        final RequestEntity requestEntity = new RequestEntity(httpRequest.getUri()
-                , httpRequest.getContent().array()
-        );
-        //ip获取
-        try {
-            String ipString = httpRequest.getHeader("X-Real-IP");
-            InetSocketAddress remoteAddress0;
-            if (ipString == null || "".equals(ipString) || "0:0:0:0:0:0:0:1".equals(ipString)
-                    || "localhost".equals(ipString)) {
-                SocketAddress remoteAddress = channel.getRemoteAddress();
-                if (remoteAddress instanceof InetSocketAddress) {
-                    remoteAddress0 = (InetSocketAddress) remoteAddress;
-                } else {
-                    remoteAddress0 = new InetSocketAddress("127.0.0.1", 0);
-                }
-            } else {
-                remoteAddress0 = new InetSocketAddress(ipString, 0);
-            }
-            requestEntity.setRemoteAddress(remoteAddress0);
-        } catch (Exception e1) {
-            LOGGER.warn("requestEntity.setRemoteAddress error:{}", e1.getMessage());
-        }
-
         final boolean keepAlive = HttpHeaders.isKeepAlive(httpRequest);
 
-        //以上为netty
         threadPoolExecutor.execute(new Runnable() {
             @Override
             public void run() {
                 DefaultHttpResponse defaultHttpResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-                defaultHttpResponse.addHeader("Content-Type", "application/json; charset=utf-8");
                 defaultHttpResponse.addHeader("Access-Control-Allow-Origin", "*");
                 defaultHttpResponse.addHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
                 defaultHttpResponse.addHeader("Access-Control-Allow-Methods", "PUT,POST,GET,DELETE,OPTIONS");
 
-
+                HttpMethod method = httpRequest.getMethod();
                 try {
-                    if (httpRequest.getMethod().equals(HttpMethod.OPTIONS)) {
+                    if (method.equals(HttpMethod.GET)) {
+                        String uri = httpRequest.getUri();
+                        URL url = new URL("http://127.0.0.1" + uri);
+                        String path = url.getPath();
+                        if (Objects.equals(path, "/")) {
+                            path = "/index.html";
+                        }
+                        String filenameExtension = org.springframework.util.StringUtils.getFilenameExtension(path);
+                        String mine = mines.get(filenameExtension);
+                        if (mine == null) {
+                            path = "/index.html";
+                            filenameExtension = org.springframework.util.StringUtils.getFilenameExtension(path);
+                            mine = mines.get(filenameExtension);
+                        }
+                        defaultHttpResponse.addHeader("Content-Type", mine + "; charset=utf-8");
+
+                        try {
+                            File file = ConfigUtils.viewFile(path);
+                            String context = FileUtils.readFileToString(file, Charset.forName("UTF-8"));
+                            byte[] contextBytes = context.getBytes();
+                            HttpHeaders.setContentLength(defaultHttpResponse, contextBytes.length);
+                            defaultHttpResponse.setContent(ChannelBuffers.wrappedBuffer(contextBytes));
+                        } catch (Exception e) {
+                            HttpHeaders.setContentLength(defaultHttpResponse, 0);
+                            defaultHttpResponse.setContent(ChannelBuffers.EMPTY_BUFFER);
+                        }
+                    } else if (method.equals(HttpMethod.OPTIONS)) {
                         HttpHeaders.setContentLength(defaultHttpResponse, 0);
                         defaultHttpResponse.setContent(ChannelBuffers.EMPTY_BUFFER);
-                    }
-                    if (httpRequest.getMethod().equals(HttpMethod.POST)) {
+                    } else if (method.equals(HttpMethod.POST)) {
+                        ChannelBuffer content = httpRequest.getContent();
+                        System.out.println(content.getClass());
+                        int readableBytes = content.readableBytes();
+                        byte[] dst = new byte[readableBytes];
+                        content.getBytes(0, dst);
+                        RequestEntity requestEntity = new RequestEntity(httpRequest.getUri()
+                            , dst
+                        );
+                        //ip获取
+                        try {
+                            String ipString = httpRequest.getHeader("X-Real-IP");
+                            InetSocketAddress remoteAddress0;
+                            if (ipString == null || "".equals(ipString) || "0:0:0:0:0:0:0:1".equals(ipString)
+                                || "localhost".equals(ipString)) {
+                                SocketAddress remoteAddress = channel.getRemoteAddress();
+                                if (remoteAddress instanceof InetSocketAddress) {
+                                    remoteAddress0 = (InetSocketAddress) remoteAddress;
+                                } else {
+                                    remoteAddress0 = new InetSocketAddress("127.0.0.1", 0);
+                                }
+                            } else {
+                                remoteAddress0 = new InetSocketAddress(ipString, 0);
+                            }
+                            requestEntity.setRemoteAddress(remoteAddress0);
+                        } catch (Exception e1) {
+                            LOGGER.warn("requestEntity.setRemoteAddress error:{}", e1.getMessage());
+                        }
+                        defaultHttpResponse.addHeader("Content-Type", "application/json; charset=utf-8");
+                        //处理请求
                         byte[] frontwayResponse = frontway.processRequest(requestEntity);
                         HttpHeaders.setContentLength(defaultHttpResponse, frontwayResponse.length);
                         defaultHttpResponse.setContent(ChannelBuffers.wrappedBuffer(frontwayResponse));

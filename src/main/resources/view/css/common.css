@@ -1,0 +1,8 @@
+* {
+    /*font-size: 13px;*/
+    font-family: Menlo, "Ubuntu Mono", Consolas, "Courier New", "Microsoft Yahei", "Hiragino Sans GB", "WenQuanYi Micro Hei", sans-serif;
+}
+body{
+    margin: 0;
+    padding: 0;
+}

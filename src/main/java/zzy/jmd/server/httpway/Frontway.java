@@ -20,7 +20,7 @@ public abstract class Frontway {
         for (FrontwayModule module : frontwayModuleList) {
             frontwayModule.checkRoutes(module);
         }
-        LOGGER.debug("registerModule:{}, Actions:{}", frontwayModule.getName(),frontwayModule.getActions());
+        LOGGER.debug("registerModule:{}, Actions:{}", frontwayModule.getName(), frontwayModule.getActions());
         frontwayModuleList.add(frontwayModule);
         return this;
     }
@@ -82,7 +82,7 @@ public abstract class Frontway {
                 endResult.setStatus(e.getStatus());
                 endResult.setMsg(e.getMessage());
             } catch (Throwable e) {
-                LOGGER.warn("processRequest error,requestEntity:{},raw:{}", requestEntity, e);
+                LOGGER.warn("processRequest error,raw:{},requestEntity:{},", e.getMessage(), requestEntity);
                 endResult.setStatus(EndResultStatus.E_500);
                 endResult.setMsg("系统异常，请联系客服");
             }

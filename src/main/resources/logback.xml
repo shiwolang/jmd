@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration scan="true">
+    <property name="log.pattern" value="%d{yy-MM-dd.HH:mm:ss.SSS} [%t] %p %c - %m%n"/>
+
+    <!--通用的配置-->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${log.pattern}</pattern>
+        </encoder>
+    </appender>
+    <logger name="org" level="WARN"/>
+    <logger name="com" level="WARN"/>
+    <logger name="io" level="WARN"/>
+    <logger name="junit" level="WARN"/>
+    <logger name="serviceStatsLog" level="WARN"/>
+    <logger name="info" level="WARN"/>
+    <logger name="ch" level="WARN"/>
+    <logger name="jndi" level="WARN"/>
+    <logger name="zzy" level="WARN"/>
+
+    <root level="DEBUG">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

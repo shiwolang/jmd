@@ -8,7 +8,7 @@ import org.commonmark.ext.gfm.strikethrough.StrikethroughExtension;
 import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
-import zzy.jmd.server.ConfigUtils;
+import zzy.jmd.server.ToolUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,13 +29,13 @@ public class MarkdownService {
     }
 
     public String markdownToHtml(String id, String md) throws IOException {
-        FileUtils.write(ConfigUtils.mdFile(id), md, "UTF-8", false);
+        FileUtils.write(ToolUtils.mdFile(id), md, "UTF-8", false);
         return renderer.render(parser.parse(md));
     }
 
     public String openFile(String id) {
         try {
-            File file = ConfigUtils.mdFile(id);
+            File file = ToolUtils.mdFile(id);
             if (!file.exists()) {
                 return "";
             }

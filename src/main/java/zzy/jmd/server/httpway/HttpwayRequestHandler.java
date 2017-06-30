@@ -1,6 +1,6 @@
 package zzy.jmd.server.httpway;
 
-import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
@@ -9,11 +9,9 @@ import org.jboss.netty.handler.timeout.IdleState;
 import org.jboss.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
-import zzy.jmd.server.ConfigUtils;
+import zzy.jmd.server.ToolUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -36,8 +34,7 @@ public class HttpwayRequestHandler extends SimpleChannelUpstreamHandler {
 
     static {
         try {
-            File file = ResourceUtils.getFile("classpath:mime.types");
-            String s = FileUtils.readFileToString(file, Charset.forName("UTF-8"));
+            String s = IOUtils.toString(ToolUtils.resourceStream("mime.types"), Charset.forName("UTF-8"));
             String[] ms = StringUtils.delimitedListToStringArray(s, ";");
             for (String m : ms) {
                 if (!StringUtils.hasText(m)) {
@@ -130,8 +127,7 @@ public class HttpwayRequestHandler extends SimpleChannelUpstreamHandler {
                         defaultHttpResponse.addHeader("Content-Type", mine + "; charset=utf-8");
 
                         try {
-                            File file = ConfigUtils.viewFile(path);
-                            String context = FileUtils.readFileToString(file, Charset.forName("UTF-8"));
+                            String context = IOUtils.toString(ToolUtils.viewStream(path), Charset.forName("UTF-8"));
                             byte[] contextBytes = context.getBytes();
                             HttpHeaders.setContentLength(defaultHttpResponse, contextBytes.length);
                             defaultHttpResponse.setContent(ChannelBuffers.wrappedBuffer(contextBytes));
@@ -144,7 +140,6 @@ public class HttpwayRequestHandler extends SimpleChannelUpstreamHandler {
                         defaultHttpResponse.setContent(ChannelBuffers.EMPTY_BUFFER);
                     } else if (method.equals(HttpMethod.POST)) {
                         ChannelBuffer content = httpRequest.getContent();
-                        System.out.println(content.getClass());
                         int readableBytes = content.readableBytes();
                         byte[] dst = new byte[readableBytes];
                         content.getBytes(0, dst);

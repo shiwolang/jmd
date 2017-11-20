@@ -6,7 +6,11 @@ public class App {
     private final static Object lk = new Object();
 
     public static void main(String[] args) throws Throwable {
-        String config = args[0];
+        String config = "classpath:config.json";
+        if (args.length == 1) {
+            config = args[0];
+        }
+
         ToolUtils.init(config);
         MarkdownService markdownService = new MarkdownService();
         HttpServer httpServer = HttpServer.getInstance();

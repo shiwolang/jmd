@@ -1,12 +1,13 @@
 package zzy.jmd.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.Map;
 
 /**
@@ -18,8 +19,13 @@ public abstract class ToolUtils {
     public final static ObjectMapper objectMapper = new ObjectMapper();
 
     public static void init(String path) throws IOException {
-        File file = new File(path);
-        String s = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+        InputStream file;
+        if (path.contains("classpath")) {
+            file = resourceStream(path.replace("classpath:", ""));
+        } else {
+            file = new FileInputStream(new File(path));
+        }
+        String s = IOUtils.toString(file, Charset.forName("UTF-8"));
         Map map = objectMapper.readValue(s, Map.class);
         Object docRoot = map.get("docRoot");
         if (docRoot == null) {

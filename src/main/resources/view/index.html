@@ -32,7 +32,7 @@
     var fileId = r.replace(".md", "").replace("/", "");
 
     $(document).ready(function () {
-        $("title").text(fileId);
+        $("title").text(fileId + ".md");
         $.ajax({
             type: "POST",
             url: "/api/open_file.json",
